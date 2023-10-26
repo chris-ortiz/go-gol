@@ -24,10 +24,10 @@ const dead = false
 
 func New() *Game {
 	g := &Game{}
-	g.updatesPerSecond = 1
-	g.scale = 20
-	g.width = 640
-	g.height = 480
+	g.updatesPerSecond = 2
+	g.scale = 5
+	g.width = 600
+	g.height = 400
 	g.columns = g.width / uint16(g.scale)
 	g.rows = g.height / uint16(g.scale)
 	g.spielfeld = g.newSpielfeld()
@@ -62,14 +62,19 @@ func (g *Game) Start() {
 func (g *Game) Update() error {
 	newSpielfeld := g.newSpielfeld()
 
-	for i := 0; i < int(g.columns); i++ {
-		for j := 0; j < int(g.rows); j++ {
-			c := g.countNeighbors(i, j)
-			newSpielfeld[i][j] = g.getNewCellState(g.spielfeld[i][j] == live, c)
+	if ebiten.IsMouseButtonPressed(ebiten.MouseButton0) {
+		x, y := ebiten.CursorPosition()
+		g.spielfeld[x/int(g.scale)][y/int(g.scale)] = live
+	} else {
+		for i := 0; i < int(g.columns); i++ {
+			for j := 0; j < int(g.rows); j++ {
+				c := g.countNeighbors(i, j)
+				newSpielfeld[i][j] = g.getNewCellState(g.spielfeld[i][j] == live, c)
+			}
 		}
-	}
 
-	g.spielfeld = newSpielfeld
+		g.spielfeld = newSpielfeld
+	}
 
 	return nil
 }
