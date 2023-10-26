@@ -16,24 +16,37 @@ type Game struct {
 	columns          uint16
 	rows             uint16
 	updatesPerSecond uint8
+	initialNoise     int
 }
+
+const live = true
+const dead = false
 
 func New() *Game {
 	g := &Game{}
-	g.updatesPerSecond = 10
-	g.scale = 5
+	g.updatesPerSecond = 1
+	g.scale = 20
 	g.width = 640
 	g.height = 480
 	g.columns = g.width / uint16(g.scale)
 	g.rows = g.height / uint16(g.scale)
-	g.spielfeld = make([][]bool, g.columns)
-	for i := range g.spielfeld {
-		g.spielfeld[i] = make([]bool, g.rows)
-	}
+	g.spielfeld = g.newSpielfeld()
+
+	// lower value = higher noise = more initial pixels
+	g.initialNoise = 2
 
 	g.randomlyFillSpielfeld()
 
 	return g
+}
+
+func (g *Game) newSpielfeld() [][]bool {
+	spielfeld := make([][]bool, g.columns)
+	for i := range spielfeld {
+		spielfeld[i] = make([]bool, g.rows)
+	}
+
+	return spielfeld
 }
 
 func (g *Game) Start() {
@@ -47,14 +60,86 @@ func (g *Game) Start() {
 }
 
 func (g *Game) Update() error {
-	g.randomlyFillSpielfeld()
+	newSpielfeld := g.newSpielfeld()
+
+	for i := 0; i < int(g.columns); i++ {
+		for j := 0; j < int(g.rows); j++ {
+			c := g.countNeighbors(i, j)
+			newSpielfeld[i][j] = g.getNewCellState(g.spielfeld[i][j] == live, c)
+		}
+	}
+
+	g.spielfeld = newSpielfeld
+
 	return nil
+}
+
+/*
+Any live cell with fewer than two live neighbours dies, as if by underpopulation.
+Any live cell with two or three live neighbours lives on to the next generation.
+Any live cell with more than three live neighbours dies, as if by overpopulation.
+Any dead cell with exactly three live neighbours becomes a live cell, as if by reproduction.
+*/
+func (g *Game) getNewCellState(liveCell bool, c uint8) bool {
+	if liveCell && c < 2 {
+		return dead
+	} else if liveCell && (c == 2 || c == 3) {
+		return live
+	} else if liveCell && c > 3 {
+		return dead
+	} else if !liveCell && c == 3 {
+		return live
+	} else {
+		return dead
+	}
+}
+
+func (g *Game) countNeighbors(i int, j int) uint8 {
+	var count uint8
+	count = 0
+
+	if j == 0 {
+		return count
+	} else if i == 0 {
+		return count
+	} else if i == int(g.columns)-1 {
+		return count
+	} else if j == int(g.rows)-1 {
+		return count
+	}
+
+	if g.spielfeld[i][j+1] {
+		count++
+	}
+	if g.spielfeld[i][j-1] {
+		count++
+	}
+	if g.spielfeld[i-1][j] {
+		count++
+	}
+	if g.spielfeld[i+1][j] {
+		count++
+	}
+	if g.spielfeld[i+1][j-1] {
+		count++
+	}
+	if g.spielfeld[i+1][j+1] {
+		count++
+	}
+	if g.spielfeld[i-1][j+1] {
+		count++
+	}
+	if g.spielfeld[i-1][j-1] {
+		count++
+	}
+
+	return count
 }
 
 func (g *Game) randomlyFillSpielfeld() {
 	for i := uint16(0); i < g.columns; i++ {
 		for j := uint16(0); j < g.rows; j++ {
-			g.spielfeld[i][j] = rand.Int()%2 == 0
+			g.spielfeld[i][j] = rand.Int()%g.initialNoise == 0
 		}
 	}
 }
@@ -77,6 +162,6 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeigh
 }
 
 func main() {
-	game := New()
-	game.Start()
+	g := New()
+	g.Start()
 }
