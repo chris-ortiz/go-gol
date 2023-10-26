@@ -17,6 +17,7 @@ type Game struct {
 	rows             uint16
 	updatesPerSecond uint8
 	initialNoise     int
+	wrapAround       bool
 }
 
 const live = true
@@ -24,13 +25,14 @@ const dead = false
 
 func New() *Game {
 	g := &Game{}
-	g.updatesPerSecond = 2
+	g.updatesPerSecond = 8
 	g.scale = 5
-	g.width = 600
-	g.height = 400
+	g.width = 1200
+	g.height = 800
 	g.columns = g.width / uint16(g.scale)
 	g.rows = g.height / uint16(g.scale)
 	g.spielfeld = g.newSpielfeld()
+	g.wrapAround = true
 
 	// lower value = higher noise = more initial pixels
 	g.initialNoise = 2
@@ -60,12 +62,12 @@ func (g *Game) Start() {
 }
 
 func (g *Game) Update() error {
-	newSpielfeld := g.newSpielfeld()
 
 	if ebiten.IsMouseButtonPressed(ebiten.MouseButton0) {
 		x, y := ebiten.CursorPosition()
 		g.spielfeld[x/int(g.scale)][y/int(g.scale)] = live
 	} else {
+		newSpielfeld := g.newSpielfeld()
 		for i := 0; i < int(g.columns); i++ {
 			for j := 0; j < int(g.rows); j++ {
 				c := g.countNeighbors(i, j)
@@ -103,13 +105,18 @@ func (g *Game) countNeighbors(i int, j int) uint8 {
 	var count uint8
 	count = 0
 
-	if j == 0 {
-		return count
-	} else if i == 0 {
-		return count
-	} else if i == int(g.columns)-1 {
-		return count
-	} else if j == int(g.rows)-1 {
+	if g.wrapAround {
+		if j == 0 {
+			j = int(g.rows - 2)
+		} else if j == int(g.rows)-1 {
+			j = 1
+		}
+		if i == 0 {
+			i = int(g.columns - 2)
+		} else if i == int(g.columns)-1 {
+			i = 1
+		}
+	} else if j == 0 || i == 0 || i == int(g.columns)-1 || j == int(g.rows)-1 {
 		return count
 	}
 
